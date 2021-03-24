@@ -1,0 +1,13 @@
+
+% Thesis Abstract -----------------------------------------------------
+
+
+%\begin{abstractslong}    %uncommenting this line, gives a different abstract heading
+\begin{abstracts}        %this creates the heading for the abstract page
+In recent years, many improvements are made to fuzzers. With all these optimisations it becomes hard to say which individual improvements influence the performance of a fuzzer. In the Angora fuzzer, they attributed their success partly to the gradient descent algorithm used in their input mutation strategy, however the used mutation strategy had fallbacks to a random strategy and could also be used with partial derivatives, so there is some doubt about the claimed effectiveness. In this thesis we want to compare the performance of different mutation strategies in a structured setting. We create a framework to perform microbenchmarks on collected traces and collect static and dynamic metrics on a condition level. We performed a data analysis to see when a strategy performs better and if we can use these results to help fuzzers make the optimal choice when scheduling conditions or mutating inputs.
+We find that between binaries, the effectiveness of strategies differ, however, the gradient descent algorithm performs very well compared to other strategies, with over 90\% overlap for most other strategies. While this strategy needs dynamic taint information, in the absence of such information, a random mutation approach outperforms more sophisticated strategies. A mutator which changes the length of the input also finds some unique conditions to flip. We create a program-specific machine learning model which can differentiate with around 80\% accuracy between conditions which will be flipped or which will not be flipped. We failed in creating a model to determine which strategy will flip a given condition the fastest.
+\end{abstracts}
+%\end{abstractlongs}
+
+
+% ---------------------------------------------------------------------- 

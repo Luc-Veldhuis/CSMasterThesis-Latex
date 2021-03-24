@@ -1,0 +1,44 @@
+% this file is called up by thesis.tex
+% content in this file will be fed into the main document
+
+\chapter{Discussion}\label{chap:discussion} % top level followed by section, subsection
+In this chapter we will discuss the result and explain some of the choises made during the process.
+
+% ----------------------- paths to graphics ------------------------
+
+% change according to folder and file names
+
+
+% ----------------------- contents from here ------------------------
+% 
+
+\section{Validity of the dataset}
+We collected traces during a run of 8 hours, since we noticed that the increase in found paths started to stagnate after a few hours already. Our mindset differs from a regular fuzzing run during this fase, since we are interested in collecting a data set with many conditions, while during a regular fuzzing run, having as much coverage as possible is the goal. So it made more sense to spend this time fuzzing other programs with lots of new conditions, instead of discovering only a few new conditions in another program. 
+
+Since we have collected several traces from an existing fuzzer, the number of flipped conditions can include a flip both ways. 
+It could be that case that the flips found are attributed to making a valid input invalid at a certain depth. In general, making a valid input invalid is way easier than making an invalid input valid, so this could skew the results if a fuzzer has managed to flip a lot of hard to flip conditions.
+
+A possible issue with the collected dataset is that the mutation strategies used by the Angora fuzzer could cause conditions which are flippable by these mutators to be more prominent in the dataset. However, since we have taken real world programs, and all conditions in an execution trace are considered instead of only the conditions flipped by Angora, we expect this bias to be minimal. Any dataset collected this way would have been biased to the used mutators by the fuzzer, so this seems like an unavoidable problem. Still we tried to correct for this, so we not only look at the percentage of flipped conditions, but we also compared the rank of strategies when looking at the time it took to flip a condition.
+
+\section{Results}
+%We implemented a maximum execution time of 15 seconds per condition per strategy.
+During the runs, if a hang occurred, our frameworks spend a lot of time on trying to flip a branch without getting any results, because of the hang. Therefore we discard the inputs collected from Angora which generate a hang. 
+During our runs, we noticed that if a strategy generated multiple hangs, it spend a lot of time on this single condition. Therefore we decided to skip a condition if it has hanged more than 10 times on this condition with a single strategy. This mostly occurred during the analysis of the traces of the \texttt{nm} program, where a hang was found where it would keep on allocating more and more memory.
+
+%In our thesis, we only looked at the total of number of conditions flipped. However, some conditions could be considered more interesting than others. We decided not to create such a distinction between the conditions, because that makes the results more general. However this might not be the behaviour one is looking for during a guided fuzzer run, where one tries to cover hard to reach places. %In order to look at the more interesting conditions, we used the depth and offset metrics separately instead of defining some metric which could assign a value to a condition in terms if `interestingness'. 
+
+
+Since we look at unique conditions, if a condition occurs in multiple traces and once with a deeper depth than the other, we only look at the first time we have seen this condition and take this depth. If we do not discard unique conditions, we get an over representation of conditions `at the surface' of the program. Namely, the very first condition it encounters would then be present in all traces, and if this is an easy condition to flip with a specific strategy, we might over represent the effectiveness of this strategy.
+
+If we do not mark a condition as unique, we could get a situation as described as above where we check the same condition over and over again, skewing the results. However, if we mark a condition too quickly as already seen, we might under represent the effectiveness of a mutation strategy, because some strategy could flip a condition deep in the program, but maybe we also saw this condition at the beginning of the program. We could have made this more unique by adding the depth to the uniqueness. This way we skip the problem where we rerun the first condition for every trace. However, if there would be a single extra condition in a trace, all other conditions following this condition are considered to be unique again, even though the callstack of the rest of the trace could be identical. Therefore we have chosen not to do this.
+
+Another point could be made by saying that the depth in an execution trace does not have a correlation to how hard it is to flip a branch. Most programs have some cleanup code when exiting, hence, the conditions in this code will be marked as very deep, while they could perform some checks without depending a lot on the previous parts of the program.%To really say something about how hard it is to flip a branch, it would be better to look at the bytes present in the comparison, and see how often these bytes were used in previous conditions in the trace. Then you have for every byte in the input a number corresponding to the number of comparisons, and you could take an average, or maximum of these values in order to guess how difficult a condition is. This is a less intuitive metric, and it also makes comparing the results harder.
+
+%We also looked at the maximum number of flipped bits per bucket for the absolute depth metric. If there were only a few flips per bucket, this could give a skewed representation of a strategy. For example in figure \ref{fig:gif2pngDepth}, where there were only 4 flipped conditions at the 90-100\% bucket, and they were all flipped by the RandomStrategy.
+
+
+%The results from the time measurements are logged using a shared logger object, however, the shared lock on this data structure might intervene with the total time when using a large number of threads. The MagicByte, OneByte, GradientDescent and RandomTaint and LengthStrategy only work when offsets are present in the condition, so these runs will be way slower when only looking at runs where there are offsets available. However, since most strategies, except the ConcolicStrategy are just some simple calculations, this metric is probably not very good to compare the efficiency of a strategy based on time spend, since the time spend is very little.
+
+The research question was partially inspired by the remark that it was unknown how well the gradient descent strategy is responsible for the results of Angora. However, we chose to implement the pure strategies, with as little extra tricks as possible. This makes it hard, if not impossible, to compare the results of our strategies to the results from Angora.
+
+%Not all strategies mentioned in section \ref{subsec:mutation-strategies} were implemented. This is because the Neural Network strategy implemented in \cite{she2019neuzz} only created a gradient for all inputs in the seed instead of just a single seed aimed to flip some branch in the target binary instead of just the target branch. Since this strategy did not work on a branch level, we decided to skip this.

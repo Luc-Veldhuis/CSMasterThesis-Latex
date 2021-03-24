@@ -1,0 +1,17 @@
+\begin{tabular}{ll}
+\toprule
+                    Model &                                                                               Parameters \\
+\midrule
+         LinearRegression &                                                                   $normalize\in \{False\}$ \\
+                    Ridge &                                                 $alpha\in \{0.01, 0.1, 1, 10, 100, 1000\}$ \\
+               ElasticNet &                                                 $alpha\in \{0.01, 0.1, 1, 10, 100, 1000\}$ \\
+                    Lasso &                                                 $alpha\in \{0.01, 0.1, 1, 10, 100, 1000\}$ \\
+           MultiTaskLasso &                                                 $alpha\in \{0.01, 0.1, 1, 10, 100, 1000\}$ \\
+                      SVR &                     $C\in \{1, 10, 100, 1000, 10000\}$\\ & $gamma\in \{0.001, 0.01, 0.1, scale\}$ \\
+                    NuSVR &                                                     $gamma\in \{0.001, 0.01, 0.1, scale\}$ \\
+                LinearSVR &                                                         $C\in \{1, 10, 100, 1000, 10000\}$ \\
+             SGDRegressor &                                                    $alpha\in \{0.0001, 0.001, 0.01, 0.1\}$ \\
+ GaussianProcessRegressor &                                    $alpha\in \{10^{-10}, 10^{-9}, 10^{-8}, 10^{-7}, 10^{-6}, 10^{-5}\}$ \\
+    DecisionTreeRegressor &  $min\_samples\_leaf\in \{1, 2, 4, 8, 16\}$\\ & $max\_depth\in \{None, 256, 512, 1024, 2048, 4096\}$ \\
+\bottomrule
+\end{tabular}

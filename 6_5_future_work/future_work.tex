@@ -1,0 +1,36 @@
+% this file is called up by thesis.tex
+% content in this file will be fed into the main document
+
+\chapter{Future work}\label{chap:future} % top level followed by section, subsection
+During our thesis, we had some new ideas which could be looked into more in future research.
+
+% ----------------------- paths to graphics ------------------------
+
+% change according to folder and file names
+
+
+% ----------------------- contents from here ------------------------
+% 
+
+
+\section{Improvements}
+
+%We only applied microbenchmarks on the mutation strategies of the input. However, the exploration strategy, the binary instrumentation and other parts of fuzzers have a large effect on its performance. Therefore it is not possible to say how much improvement a new mutation strategy will give on a fuzzer as a whole. 
+%For future research, we could implement a micro-benchmark using only 1 mutation strategy, or log the effectiveness of every strategy during a regular fuzzing run.
+%Creating a collection of microbenchmarks by using solely one of the specific mutation strategy during a fuzzer run is left open for future research.
+
+%We could also implement more strategies, like one of the Neural Network strategies specified in section \ref{subsect:exploration-strategies} or add more substrategies to the strategies which use this.
+
+We have designed our framework such that it can easily be extended with new strategies. We have found several ideas which could be studied further using our framework. The RandomStrategy could be changed to incorporate more substrategies to see if using other substrategies for the random mutation work better than the one used in our thesis. Also the neurosymbolic strategy as described in \cite{shen2019neuro} could be implemented in our framework. 
+
+As for the section on metrics, we could include more metrics as used in \cite{chen2020meuzz}. More explicitly, counting the number of indirect and external calls seen before a condition in the trace could help predict the effectiveness of strategies such as the ConcolicStrategy, since these calls can lead to state explosions. Another metric, which requires changing the dynamic taint analysis, could be not only tracking the input taint, but also counting the number of arithmetic operations on the input bytes. This might give a better insight in the complexity of a condition, since the mapping from the input to the value in the condition becomes is no longer one on one, which is assumed in the MagicByte strategy.
+
+In \cite{lyu2019mopt} they claim that the performance of the random strategy is program dependent, so it might be a good idea to combine some metric which could describe the program structure better. If we could extract features from the Control Flow Graph and map those to conditions, this might give additional insights. Such a combination can already be seen in the VUzzer \cite{rawat2017vuzzer}, but this information is not used to select a mutation strategy, but to prioritise which conditions to fuzz.
+
+As mentioned in Chapter \ref{chap:implementation}, we could also combine the compilation pass from \texttt{SymCC} with the compilation pass from Angora, such that the \texttt{SymCC} framework only starts to generate potential inputs which flip 1 specific branch instead of all branches found in the trace.
+
+
+\section{General framework}
+If a paper claims that it improved one part of a fuzzer but reimplemented it in another language, added multithreading or changed any other aspect besides the improved part, the comparison with a macro-benchmark could have been cleaner by also including statistics of microbenchmarks, or more detailed information of performance of strategies. What is used in some papers is providing the same input seeds to a fuzzer with different strategies and looking at the coverage, however, it is not specified if this coverage diverges or if it contains the same parts of the program. This makes it hard to interpret the results of these experiments. A good attempt to solve these problems has been made by Google with the Fuzzbench benchmarking suite \cite{metzman2020fuzzbench}. However, this only considers the macrobenchmarks of coverage and it is impossible to see exactly which part of a fuzzer outperforms other parts of other fuzzers.
+
+To tackle such an issue, we need an even more general solution. A possible solution could be to create a general framework, like in the Peach Fuzzer \cite{eddington2011peach}. This fuzzer takes an XML format to specify the input generators and input format, which it will then use to fuzz some target binary. When comparing this to other domains, like cloud computing, a single task if performed by several micro-services, where for example a loadbalancer can use different strategies to distribute a load. To test the effectiveness of a single strategy, a dataset with input is collected an ran on unique systems with only a different load balancer \cite{andreadis2018reference}. If we extend this idea, it could be possible to create a fuzzing benchmarking suite, which takes some instrumentation, some mutation strategies and some exploration strategies as input, and compares the results. This could then follow an architecture like Minix 3 \cite{herder2006minix} where the framework dispatches task to components which will perform their task. The components can then be swapped by different strategies of different fuzzers and used in a `plug and play' way when using a shared interface. However due to the large amount of diversity in the information gathered from the binary and the information needed for the scheduling, this seems like a extremely challenging task, where there will be a lot of interplay between the components which may not be standardised. In \cite{klees2018evaluating} such a remark is also made. They mention that creating a fuzzing framework will be a community effort due to the difficulties they had in comparing the global performance of fuzzers with one another using macrobenchmarks.

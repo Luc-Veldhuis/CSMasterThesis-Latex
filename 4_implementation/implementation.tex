@@ -1,0 +1,154 @@
+% this file is called up by thesis.tex
+% content in this file will be fed into the main document
+
+\chapter{Implementation}\label{chap:implementation} % top level followed by section, subsection
+In this chapter, we will explain how we implemented the framework. We will also look at the changes which needed to be made to existing programs.
+
+% ----------------------- paths to graphics ------------------------
+
+% change according to folder and file names
+
+
+% ----------------------- contents from here ------------------------
+% 
+
+\begin{comment}
+\tikzset{app/.style={fill=yellow!20}}
+\tikzset{ output/.style={fill=red!20, rounded corners=3pt}}
+\tikzset{ code/.style={fill=blue!20, rounded corners=3pt}}
+\tikzset{ input/.style={fill=green!20, rounded corners=3pt}}
+\tikzset{ intermediate/.style={fill=gray!20, rounded corners=3pt}}
+\begin{figure}
+    \centering
+    \begin{tikzpicture}[every node/.style={align=center}]
+      % Dialectics
+  \node[draw,input] (TargetSource) at (0,0) {Target Source};
+  \node[draw,app] (AngoraCompiler) at (-6,-1) {Angora Compiler};
+  \node[draw,code] (AngoraFast) at (-7.5,-3) {Target with\\ fast instrumentation};
+  \node[draw,code] (AngoraTrack) at (-3.55,-3) {Target with\\ track instrumentation};
+  \node[draw,code] (FuzzCheckerCompiled) at (0,-3) {Target with\\ Fuzz Checker\\ instrumentation};
+  \node[draw,code] (SymccCompiled) at (4,-3) {Target with\\ SymCC instrumentation};
+  \node[draw,input] (InputSeeds) at (-8.5,-5) {Input\\ seeds};
+  \node[draw,app] (FuzzCheckerCompiler) at (0,-1) {Framework Compiler};
+  \node[draw,app] (SymccCompiler) at (4,-1) {SymCC Compiler};
+  \node[draw,app] (AngoraFuzzer) at (-6,-5) {Angora Fuzzer};
+  \node[draw,intermediate] (TrackFiles) at (-6,-6) {Track files};
+  \node[draw,intermediate] (GeneratedInputs) at (-2,-5) {Generated inputs};
+  \node[draw,app] (TrackFileParser) at (-6,-7) {Track File Parser};
+  \node[draw,intermediate] (ParsedTrackFiles) at (-6,-8) {JSON Track files};
+  \node[draw,app] (FuzzChecker) at (2,-5) {Fuzz Checker};
+  \node[draw,intermediate] (OutputInformation) at (2,-6) {Output information};
+  \node[draw,app] (OutputParser) at (2,-7) {Output Parser};
+  \node[draw,output] (CSV) at (2,-8) {CSV};
+  
+ 
+  
+  \draw[->] (TargetSource) to (AngoraCompiler);
+  \draw[->] (TargetSource) to (FuzzCheckerCompiler);
+  \draw[->] (TargetSource) to (SymCCCompiler);
+  
+  \draw[->] (SymccCompiler) to (SymCCCompiled);
+  \draw[->] (FuzzCheckerCompiler) to (FuzzCheckerCompiled);
+  
+  \draw[->] (AngoraCompiler) to (AngoraFast);
+  \draw[->] (AngoraCompiler) to (AngoraTrack);
+  
+  \draw[->] (AngoraFast) to (AngoraFuzzer);
+  \draw[->] (AngoraTrack) to (AngoraFuzzer);
+  \draw[->] (InputSeeds) to (AngoraFuzzer);
+  
+  \draw[->] (AngoraFuzzer) to (GeneratedInputs);
+  \draw[->] (AngoraFuzzer) to (TrackFiles);
+  
+  \draw[->] (TrackFiles) to (TrackFileParser);
+  \draw[->] (TrackFileParser) to (ParsedTrackFiles);
+  
+  \draw[->] (ParsedTrackFiles) to[in=180,out=0] (FuzzChecker);
+  \draw[->] (GeneratedInputs) to (FuzzChecker);
+  \draw[->] (FuzzCheckerCompiled) to (FuzzChecker);
+  \draw[->] (SymccCompiled) to (FuzzChecker);
+  
+  \draw[->] (FuzzChecker) to (OutputInformation);
+  \draw[->] (OutputInformation) to (OutputParser);
+  \draw[->] (OutputParser) to (CSV);
+  
+  
+  
+    \end{tikzpicture}
+    \caption{General overview of the architecture of the framework}
+    \label{fig:generalImplement}
+\end{figure}
+\end{comment}
+\section{Creating the framework}
+The first thing we need are traces with detailed information about every condition. For this we use the existing coverage-guided fuzzer Angora, since this fuzzer is also the one which helped us come up with our research question. This fuzzer compiles every binary twice, once with fast instrumentation for checking if a condition has been flipped and once with track instrumentation to get the dynamic taint information.
+After a thorough inspection of the Angora source code, we noticed is that the trace from a run with dynamic taint analysis is stored in a file in the temporary file system, it is then parsed and overwritten on the next run. To match all traces with the corresponding input, we modified Angora to store all \texttt{(input, trace)} pairs \footnote{\url{https://github.com/Luc-Veldhuis/Angora/tree/store-traces}}.
+
+To collect the traces, we let Angora run for exactly 8 hours. As shown in the paper of the Angora fuzzer, after a few hours there is hardly any new coverage in the program and since we are more interested in creating a large data set with conditions instead of finding bugs, we chose to terminate the fuzzer after this period. 
+
+We have little experience with the Rust language, and since we have seen strategies implemented in Python for fuzzers \cite{schumilo2017kafl, aschermann2019redqueen, she2019neuzz}, we decided to import the pairs in Python.
+
+The format in which the traces were stored, was not an easily readable format for Python. Fortunately, Angora provides a parser to parse these files. Unfortunately, the \texttt{json} output format was actually a Rust pretty print output format and not real \texttt{json}. Hence, we modified the corresponding classes to be serializable to \texttt{json}, to convert the track files to a readable \texttt{json} output format. This change has now also been incorporated in the source code of Angora \footnote{\url{https://github.com/AngoraFuzzer/Angora/pull/100}}.
+
+Then we started to look more in depth at the information available in the trace.
+When fuzzing a small program like in Figure \ref{fig:mini-code}\footnote{Modified from \url{https://github.com/AngoraFuzzer/Angora/blob/master/tests/mini/mini.c}} with Angora, we find information in the trace as shown in Figure \ref{fig:mini-trace}.
+
+\begin{figure}[H]
+    \centering
+    \inputminted{C}{code/mini.c}
+    \caption{Example of a program with some hard to reach statement.}
+    \label{fig:mini-code}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \inputminted{JSON}{code/trace.json}
+    \caption{Example of a found condition in the trace information.}
+    \label{fig:mini-trace}
+\end{figure}
+
+
+Here we see that if we fill in the variables found during the dynamic taint analysis in offsets 4 through 8 in the input, we obtain the value in \texttt{arg2}, while the current value is in \texttt{arg1}. We also have a \texttt{context} field for the context id and a \texttt{cmpid}, the condition id. The \texttt{condition} field indicates if a condition has been flipped. The \texttt{lb1} and \texttt{lb2} fields are used by the DataFlowSanitizer \cite{dataflowsanitizer} to pass additional information. During the oracle runs, this field is used to communicate if a condition which we are trying to flip, has been seen or not.
+
+We also implemented multithreading in the framework such that we can test multiple conditions at the same time.
+
+%In the initial design, first all traces to be tested were loaded into the testing framework. However, for some runs we had more than 4GB worth of trace information, and this did not fit into the RAM of the machine on which we ran the framework. So we had to update the framework to open and process each trace file one by one. 
+
+
+%In the early stages, there was 1 forkserver which spawned 1 forkclient which was given a strategy which would generate new inputs. However for the gradient descent strategy, there needed to be runs during the generation of the new input, so we had to reverse this structure, where a strategy was given a handler, which was safe to run in a multithreaded environment, and then could run the target binary with some input and use the output of the oracle to continue the strategy.
+
+\section{Oracle}
+To create an Oracle, we used a forkserver and forkclient setup which communicate via Unix sockets. This was done by implementing a forkclient in Rust, and sending from the server a start marker and the condition which needs to be watched to the client, and then sending back the PID of the newly spawned child and the result of the condition once the execution was done. The result of the condition contains information about the arguments which were compared, if the condition was reached at all and the result of the comparison. Using such a design is faster than spawning new processes from the fuzzer, since calling fork in the child process leverages the copy-on-write mechanism on the code pages, such that those do not need to be copied to DRAM again for every run.
+
+We also needed to insert instrumentation and the library containing the forkclient in the target binaries, so we modified the compiler pass of Angora to insert both the forkclient and the instrumentation. Since the instrumentation of the Oracle resembled the fast instrumentation of Angora, we took this as a starting point and started modifying this pass to create our own compiler pass. One major disadvantage of the Angora instrumentation was the way it generated unique ids. The context and compare ids had to match the collected trace information exactly, otherwise we would not be able to match our traces with the Oracle. Angora also uses a list of functions with possible exploits. It then inserts an extra check at all found locations. This generation updated the random generator of ids, so if a function is added or removed from this list, the generated ids in the compiler pass may differ from a previous run of the pass if one of the functions in the exploit list is present in the binary. Therefore we had to leave this list in our implementation, to make sure all ids were matching with the collected ids in the trace. This also could give difficulties in cross compilation, because depending on which variables are defined during the compilation, functions could be compiled slightly different, causing one to loose the correspondence with the collected traces, if that binary was compiled on another system. So we compiled all binaries on the same machine.
+
+Most of the binaries we selected are also tested in the Angora paper, so we know that these can be instrumented. However, the \texttt{tcpdump} and \texttt{tiff2pdf} and \texttt{gif2png} were not tested, but we tried to instrument these nevertheless.
+We have chosen not to use the \texttt{readpng} program from the Angora paper, because in the newer versions of the source code the file contains invalid C code \footnote{\url{https://sourceforge.net/p/libpng/code/ci/master/tree/contrib/gregbook/readpng.c\#l269}}, and there is no \texttt{main} function, because it is used a helper for the \texttt{rpng-x} program. 
+
+
+\section{Modifying SymCC}
+For the concolic execution, we used the the SymCC compiler \cite{poeplau2020symbolic}. This compiler can use symbolic execution on an entire input file of a binary and generate new inputs which trigger other branches. However, with taint information, we only want some bytes to be symbolic. To change this behaviour, we added an environmental variable, \texttt{SYMCC\_SYMBOLIC\_BYTES}, which contains the bytes to be made symbolic separated by a comma. This list is then used in the \texttt{libc} wrapper when calling the \texttt{fopen} function to only mark the bytes in this list as symbolic. When this variable is not given, all bytes are considered to be symbolic. For future reference, we can extend this compiler to only flip a branch with a given condition id, such that it will spend all of its time working on the selected condition.
+The ConcolicStrategy could be optimised if we could combine the SymCC instrumentation with a combination of the Oracle compiler pass and we could make sure inputs are only generated for the target branch, instead of all conditions seen in the trace. This is left for future research.
+
+\section{Running the framework}
+Since it can be hard to make an experiment reproducable \cite{van2018benchmarking}, we aim to make all our progress open source and use package managers to store information about the used packages.
+We created a pipenv \cite{reitz2020pipenv}, which keeps track of all imported Python packages. The forkserver and forkclient were written in Rust using Cargo as package manager \cite{cargo}, to keep track of specific versions of the used packages. For the modification of Clang, we used the same version as Angora uses, which is downloaded and extracted by the \texttt{build.sh} script. In Appendix \ref{appendix:repos}, all specific commit hashes are given for the binaries used and the git repositories with the source of our framework. Fortunately, most fuzzers are open source and it makes it easier to reproduce the results. However, the exact script and inputs with which the results are gathered are often unknown. In \cite{angora2020blogpost} the authors asked the authors of Angora to give the specific commit hash of the code version which was used to obtain the results, but the authors of Angora were unable to provide this. There seem to be more instances in the scientific computer science field where sometimes experiments are not completely reproducible \cite{collberg2016repeatability}.
+Our implementation can be found at \url{https://github.com/Luc-Veldhuis/MasterThesisCS2020/tree/0.2/fuzz_checker/strategies}.
+
+\section{Creating models}
+We created machine learning models by using the scikit learn python package \cite{scikit-learn}. This package has several built-in models and preprossessing capabilities. We try several different models and use 5-fold cross validation to find the best parameters for each model. For the list of all models we tested, see Appendix \ref{appendix:models}.
+%For the models which classify a condition as flippable or not flippable, we use the weighted accuracy as our main scoring metric, but we also look at the precision, f1-score and recall. For the models which use regression to predict the time a strategy spends on a condition before it is flipped, we use the absolute mean as our scoring metric, since this is robust to outliers and lets us see how much we differ from the expected result.
+
+\section{Challenges}
+During our testing runs we noticed that the \texttt{xmlwf} binary did not generate any test cases for the ConcolicStrategy. After inspection with \texttt{ltrace} we noticed that it did make library calls to the \texttt{SymCC} library, so we decided to mark this strategy for this binary as failed.
+
+To compile the \texttt{libpng} library used for the \texttt{gif2png} program, the \texttt{zlib} library was required, so we also compiled and linked this library to \texttt{libpng} using our instrumentation. 
+
+For the tests run on the \texttt{tiff2pdf} we found that the there was not a single condition flipped for this binary. After an inspection in \texttt{gdb} we found that the context ids had changed between the collected tracks and the inserted context ids of our own instrumentation. During the collection of these traces we also got some errors in Angora. So unfortunately we cannot include this binary in our evaluation. %It is unclear why this happened for only this binary, but it could be that something already went wrong during the collection of the traces. 
+%To be completely sure that we accidentally compiled the two versions in different environments, we cloned the source repository after every compilation, to make sure we were in the exact same environment, except the \texttt{CC} and \texttt{CXX} variable, but we got the same results, where the context ids were different. 
+
+During the creation of the condition ids in the dynamic and the static passes, there was some discrepancy due to the complexity in creating the ids. In the dynamic pass, if a context id or an instruction from the exploit list is encountered, sometimes not a hash of the debug information is used, but a random generated one. These ids were skipped in the static pass, since the random ids did not match. In Table \ref{tab:matchedIds} we display the number of matched ids per binary. In all cases it has matched more than 80\% of all condition ids.
+\begin{table}[H]
+\centering
+\input{5_results/graphs_new/tables/percentage_matched}
+\caption{Percentage of matched condition ids in the static analysis pass.}\label{tab:matchedIds}
+\end{table}

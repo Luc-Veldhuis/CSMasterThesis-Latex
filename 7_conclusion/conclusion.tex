@@ -1,0 +1,27 @@
+% this file is called up by thesis.tex
+% content in this file will be fed into the main document
+
+\chapter{Conclusion}\label{chap:conclusion} % top level followed by section, subsection
+
+
+% ----------------------- paths to graphics ------------------------
+
+% change according to folder and file names
+
+
+% ----------------------- contents from here ------------------------
+% 
+In this thesis, we identified and compared different mutation strategies for the input used in real world fuzzers. We then build a framework where we reimplemented some state-of-the-art strategies and used microbenchmarks, dynamic and static metrics to test every condition in a dataset of traces, which we collected by fuzzing a set of programs with the state-of-the-art Angora fuzzer.
+
+From the results, we concluded that depending on available dynamic taint information, using the gradient descent algorithm performs better when this information is available, but random modifying the input performs well when no such information is available. Modifying the length of an input could also be a valuable mutation strategy, since this is not easily triggered by the gradient descent algorithm, nor is it easy to be triggered by a random strategy.
+We also found that between different programs, mutation strategies have different effectiveness. This was already observed for mutations in a random strategy \cite{lyu2019mopt}, but this conclusion can also be extended to more strategies evaluated in this thesis. 
+Using our metrics, we managed to create a program specific machine learning model, using a decission tree classifier, which classifies a condition as flippable with about 80\% accuracy. However, this model needs to be created during a fuzzing run, and is not portable to other binaries.
+When trying to choose a strategy which is more effective than others, we failed to find a model which gives a good estimate for the time spend per strategy on a condition.
+The different effectiveness between different programs gives rise to the idea that the structure of a program has a more dominant factor in picking an efficient mutation strategy, which is left for further research.
+
+All results from the evaluation and the source code used can be found in the repositories as specified in Appendix \ref{appendix:repos}.
+
+\paragraph*{Acknowledgements}
+We would like to thank the VUSec group for their valuable feedback and guidance, Elia Geretto for his helpful pointers, feedback and quick responses and Andrea Jemmett for his help with the data analysis.
+
+%\cite{*}

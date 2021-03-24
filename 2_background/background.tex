@@ -1,0 +1,176 @@
+% this file is called up by thesis.tex
+% content in this file will be fed into the main document
+
+\chapter{Background}\label{chap:background} % top level followed by section, subsection
+
+
+% ----------------------- paths to graphics ------------------------
+
+% change according to folder and file names
+
+
+% ----------------------- contents from here ------------------------
+% 
+In this chapter we will give some background information about the architecture of fuzzers. We will identify the most important components and look at some interesting implementations in existing and state-of-the-art fuzzers. Then we will look at how fuzzers are being benchmarked. Finally we will look at some existing fuzzers, which are used in creating the strategies for the framework in Chapter \ref{chap:methology}.
+
+
+\section{Fuzzers}\label{sec:fuzzing}
+The term fuzzing was coined by Barton Miller in 1988, when he taught a class at the University of Wisconsin and he gave the students an assignment to write a program which would generate random input to test some UNIX binaries for robustness \cite{takanen2018fuzzing}. This technique is still used today, but has evolved from its origin to multiple fields. Nowadays there are projects in the software testing domain which use fuzzing to test websites, protocols, applications and file formats \cite{owaspfuzzing}. Within modern browsers like Chrome, the testing fase often deploys a fuzzer \cite{aizatsky2016ossfuzz}. In this thesis we focus on its use to find bugs in a target binary. A fuzzer is an application which generates input for a target program to trigger unintended program behaviour. Examples of unintended behaviour can be hangs, crashes or even exploits \cite{chen2018angora}. The inputs can be generated in different ways. One way of generating input, is specifying the input format in advance and generating test cases from this, also called syntactical fuzzing or generation-based fuzzing \cite{zeller2019fuzzing}. Another way is to generate input by mutating input or creating random input, called lexical fuzzing or mutation-based fuzzing \cite{rawat2017vuzzer}. In our thesis we only consider mutation strategies, since these can be applied to binaries even when the input format is unknown.
+%Fuzzing can be described as an optimisation problem \cite{she2019neuzz}. When this is done, a fuzzer itself is described as a function to generate an input which triggers a bug, which can be optimised to find as many bugs as possible. These functions can get additional inputs from the target binary, if it has been instrumented or analysed to communicate some information back to the fuzzer. 
+A fuzzer sometimes has a strategy which prioritises some inputs over other inputs, where inputs can be classified as `more interesting' then other inputs, these are called exploration strategies. %We will see what metrics are used to mark an input as interesting and how this can be used to prioritise inputs for mutation.
+
+\subsection{Binary instrumentation}\label{subsec:binary-instrumentation}
+A binary can be instrumented in different ways. Generally there are 3 distinct classes of instrumentation. However, as is the case with the some fuzzers \cite{chen2018angora}, different instrumented versions of a binary can be used. A blackbox fuzzer has no access to any internal information from the binary \cite{eddington2011peach,helin2018radamsa}. The advantage of such a fuzzer is that it can be used on any type of binary, even if there is no source code available, for example proprietary code. It also executes the target binary with the native speed, because it is not altered.
+The disadvantage of such a fuzzer is that it does not use information of the binary at runtime which could help to explore more code paths.
+A greybox fuzzer is a fuzzer which instruments or analyses the target binary to some degree \cite{hongfuzz} and often needs the source code of the program. A very popular fuzzing tool which uses this kind of instrumentation is the AFL fuzzer \cite{aflfuzzer}. This popular fuzzer generates a coverage map of the program and when a new state in the program is explored, the corresponding input is added to the list of inputs which are mutated. To create the coverage map, the target binary needs to be compiled with instrumentation added to create such a map at runtime. Since this program became very popular, there are several derivatives which all aim to improve the original fuzzer \cite{bohme2017directed,bohme2017coverage,lemieux2018fairfuzz}. The advantage of such a fuzzer is that it has access to some internals of the application, but this comes at the price of some overhead. Another way to get access to the program internals, is executing the target binary in a virtual machine and adding hooks at interesting points \cite{schumilo2017kafl, aschermann2019redqueen}.
+A whitebox fuzzer is a fuzzer which inspects every state of the program. It is often used for symbolic fuzzers, which can use this to symbolise the constrains of conditions \cite{han2019synfuzz,stephens2016driller, liang2019deepfuzzer}. Since this is often very slow, it can be combined with greybox fuzzing instrumentation, where only if no new inputs are generated, a symbolic run is started in the hope to find new inputs \cite{stephens2016driller}.
+
+
+\subsection{Mutation strategies}\label{subsec:mutation-strategies}
+%There are several different input mutation strategies, where the random mutation strategy has been researched more extensively than others \cite{aflfuzzer, lyu2019mopt}. 
+A mutation-based fuzzer starts with a set of input seeds and tries to change these. AFL uses random mutation and this is still a popular choice for mutation strategies \cite{rawat2017vuzzer, chen2018angora, aflfuzzer}. AFL has 11 different ways, or mutation operators, to mutate one input and chooses from these options uniformly.
+In \cite{lyu2019mopt} the authors find that the mutation operators used by AFL to randomise the input seed have different performance depending on the program being fuzzed. They create a mutation operator scheduler which dynamically updates which mutation operator should be used to mutate an input. However, this was solely focused on the random mutation strategies, and in recent years more complex mutation strategies have emerged \cite{she2019neuzz, shen2019neuro, yun2018qsym, chen2018angora}. 
+
+Dynamic taint analysis \cite{rawat2017vuzzer} is a technique used by greybox fuzzers where the input bytes are tainted, and tracked throughout an execution. With this technique it is possible to track which bytes from the input are present in which conditions. Using this information, it is possible to change a specific part of the input to the value where these bytes are compared to, to try to flip a specific condition. This strategy is sometimes called a `magic byte' strategy since it is useful to flip conditions which are protected by a comparison with a specific value, and those values are hard to find using solely random mutations.
+
+The gradient descent algorithm is used in mathematics as an optimisation algorithm to find a local minimum \cite{ruder2016overview}. If a distance metric is used between both values which are compared in a branch, a condition can be modelled as a function and the algorithm can be applied \cite{chen2018angora} by calculating the partial derivatives using execution runs where the input is shifted with one bit. With these partial derivatives, the gradient of the input can be calculated to generate a new input.
+By looking at the input as a function which can be optimised to find new code paths, this abstraction can be used in a broader sense where fuzzing in general is seen as an optimisation problem \cite{she2019neuzz}. If a program input is given to a neural network, an edge coverage map of the entire program can be produced as an output. Then the gradient of the coverage map is computed per input byte, and these byte values are subtracted and added to interesting input seeds.
+Even more advanced strategies exist, which use a neural network to guess the conditions in a branch, and then using an SMT solver with the known and guessed constraints to generate a new input \cite{shen2019neuro}.
+
+\subsection{Exploration strategies}\label{subsect:exploration-strategies}
+From the collection of input seeds, the most promising seeds need to be selected to trigger new program behaviour.
+However, there are several metrics in use which can be used as `promising'. There is a distinction between coverage-guided fuzzers, which try to cover as much of the application as possible and directed fuzzers, which try to focus their resources into some specific parts of a program. 
+
+Coverage can be measured using several metrics, such as lines of code \cite{zeller2019fuzzing} or edges between basic blocks \cite{rawat2017vuzzer}. 
+%Even these edges can be given a function, where edges to basic blocks with less incoming edges are preferred over blocks with a lot of incoming edges. 
+%Another metric for coverage are conditions in a program, which can be collected from a trace and then you can try to flip the individual conditions. 
+These metrics can be context-aware or have no context. When context awareness is used, information of the the control flow graph is used to determine if a condition has already been seen with the same path to the condition. %Sometimes only the function call stack is used as context \cite{chen2018angora}.
+Directed strategies can be used \cite{chen2018hawkeye}, when trying to steer a fuzzer into a part of the binary. It is not always useful to try to cover the entire program, but only a part of the program which is more likely to be affected by bugs, like newly patched code.  Such a strategy tries to guide an input to some specific basic blocks and is called a directed fuzzer. However, these sites can also be located automatically by using sanitizer information obtained from checks in the compiler, creating a sanitizer guided fuzzing strategy \cite{osterlund2020parmesan}. 
+
+\section{Benchmarking}\label{sec:benchmarking}
+To compare the performance of fuzzers, some benchmarks have become the standard in the academic world. The number of bugs found in the LAVA-M dataset in a given time frame is one of the most common benchmarks \cite{dolan2016lava}. Often also the number of lines covered in some real world programs is given as benchmark. However, if a completely different framework is used, the speed of the rest of the framework is also measured using the same macro-benchmark.
+%If then a novel feature is introduced, like gradient descent, but also the `bag of tricks' to make the framework faster contains speed upgrades, like multithreading, it is nearly impossible to say which part of the improved result belongs to the novel feature and which part to the improved framework. 
+
+VUzzer\cite{rawat2017vuzzer} and the AFL fuzzer \cite{aflfuzzer} are a single threaded fuzzer\footnote{Different AFL processes can be synchronised, so this fuzzer can use multiprocessing.} with a single instrumented binary, while Redqueen \cite{aschermann2019redqueen} and Angora \cite{chen2018angora} can use multiple threads. This makes it hard to compare individual changes in for example mutation strategies or exploration strategies between fuzzers, so some papers let single threaded fuzzers run longer \cite{chen2020meuzz} to compensate for this. 
+
+In \cite{bohmefuzzing} the authors analyse the result of multiple fuzzers and they find that a coverage metric can be misleading, since they found that an increase in coverage comes at an exponential cost. They suggest to compare fuzzers in terms of the time it takes to discover the same bug(s), or the time to achieve the same coverage. 
+
+In \cite{klees2018evaluating} the authors find that the versions of the binaries used in these macrobenchmarks often differ per paper and that it will take a community effort to create a base line of binaries on which fuzzers will be tested, together with a framework which extracts the macrobenchmarks.
+
+An attempt at such a framework is made by Google \cite{metzman2020fuzzbench}. It lets a number of fuzzers run on the same binaries for the same amount of time and then analyses their coverage as main metric.
+
+\subsection{AFL}
+As discussed above, AFL is a coverage-guided mutational fuzzer. It uses different random mutation strategies on a set of seeds to try to reach new states. If a mutated seed reaches a new branch, this input is added to the set of seeds, and also mutated further. There has been a lot of research on different parts of this fuzzer, like improving the mutation scheduler for the seeds where it focuses more on the unexplored paths \cite{bohme2017coverage}, improved selection of the random mutations applied \cite{lyu2019mopt} or updating the coverage-guidance by also taking into account an $n$ number of previous basic blocks to see if parts of the path have changed \cite{wang2019sensitive}. In \cite{fioraldi2020afl++} all of these changes have been incorporated into an AFL clone called AFL++. It is possible to turn on individual optimisations and modes when using this fuzzer.
+
+\subsection{VUzzer}
+The VUzzer \cite{rawat2017vuzzer} aims to improve the selection of the conditions to fuzz, based on the path on which a condition is discovered. By using static analysis, an initial control flow graph of the program is generated which is used to prioritize or deprioritize certain code paths. Then during the fuzzing runs, dynamic taint analysis is used to find the offsets of the input which are used in the \texttt{CMP} instructions and based on the traversed paths, the priority of the code paths is adjusted to prioritise undiscovered paths. This was one of the first uses of dynamic taint tracking in a fuzzer without resorting to symbolic execution. 
+
+\subsection{Angora}\label{subsec:angora}
+The Angora fuzzer is a coverage-guided fuzzer which uses context sensitive conditions as coverage metric. It has a lot of improvements like splitting the instrumentation in 2 parts, one version for dynamic taint analysis and one to check if a condition has been flipped \cite{chen2018angora}. However even though the code was made open source, the version used during the collection of the results was not labelled \cite{angora2020blogpost}. It also contains values which seem arbitrary to obtain good results, which starts to look like the old \texttt{O(1)} scheduler in the Linux kernel which contained a lot of magic values which seem to work for some reason, but it became hard to explain why these values were chosen \footnote{\url{https://github.com/radekp/linux-2.6/blob/master/kernel/sched.c\#L1378}}. Some mutation strategies continue with random fuzzing if the condition was not flipped with the regular strategy. In the paper the authors compare the gradient descent strategy with the random fuzzing strategy and say that it covers more of the program, while the gradient descent strategy uses random fuzzing when it cannot flip the condition. This could be considered a benchmarking flaw \cite{van2018benchmarking}, since there is overlap between the seemingly independent strategies. This makes it hard to say which part of the number of bugs found can be attributed to the gradient descent strategy and which part to the overall framework improvements.
+
+\subsection{Redqueen}\label{subsec:redqueen}
+In Redqueen, the authors improve the instrumentation needed to do heavy dynamic taint analysis by assuming an input-to-state correspondence. They found that in conditions, the value which is compared is often just a simple mutation from the input. Several encodings are applied on the found value, like ASCII encoding, zero or sign extension, reversing the bytes and more. A new input value is then generated with the corresponding input bytes replaced with this value, and the calculated value with one added and one subtracted. 
+It also uses the kAFL \cite{schumilo2017kafl} fuzzer to fuzz these inputs but with some added strategies like the one from the blackbox radamsa fuzzer\cite{helin2018radamsa}. 
+
+\subsection{SymCC}\label{subsec:symcc}
+The SymCC compiler is a compiler which adds support for executing a binary with symbolic execution and at the same time produces test cases at every branching point which should lead to a new program state \cite{poeplau2020symbolic}. It uses the Z3 solver \cite{de2008z3} to solve the constraint at each branch using the Qsym backend \cite{yun2018qsym}. If the symbolic execution is disabled, the binary runs just like a regular binary. Before the fuzzer is ran, the input length has to be specified. However, it was not yet possible to make only certain bytes of an input symbolic. Since it uses the Qsym as backend, it also optimistically generates inputs, if the constraints are too tight.
+
+\subsection{Fuzzers using machine learning}\label{subsec:MLfuzzers}
+In more recent developments, fuzzers which utilize machine learning to adjust part of the strategy while they are in use have been developed.
+In \cite{chen2020meuzz}, the authors focus on the selection of seeds in a hybrid fuzzer, one which uses both symbolic execution and greybox fuzzing like AFL. A lot of features are extracted from the program, like the CFG and sanitizer information and see which mutated seeds perform best. In combination with a regression model, when a new seed is discovered this model determines if the seed should be used for symbolic execution. This approach is more flexible when the fuzzer runs on multiple different programs, because the authors claim that fixed heuristics cannot be applied on every program.
+
+In the NEUZZ fuzzer \cite{she2019neuzz}, the mutation strategy itself is using a neural network which predicts which bytes should be changed on a set of inputs based on the AFL coverage map. This neural network is updated when the coverage map of the program is updated and the mutation is applied on the top 255 input seeds.
+
+When focusing only on the mutation strategies, in \cite{lyu2019mopt} a Particle Swarm Optimisation strategy is used to update the priority of every applied random mutation, such that the program can adaptively switch strategies based on the effectiveness of the used mutation strategy. This is then adapted during the run of the program to assure the most effective strategy is given the most time to mutate the input seeds. The authors show that the effectiveness of a strategy can differ between programs.
+
+In \cite{shen2019neuro} the authors create a fuzzer which uses both a neural network and symbolic execution. When a symbolic execution engine stops generating new inputs because it is stuck, an explicit run is started with values satisfying the symbolic constraints. When about 100000 intermediate values are gathered from the explicit runs, a neural network can be trained to estimate the behaviour of the program using this neural net. In combination with the symbolic constraints, now neural constraints can be added to the list of constraints to solve to flip a branch. %This combination allows for a larger program coverage then symbolic execution alone.
+
+\subsection{Other fuzzers}
+There are of course many more fuzzers out there. Since we are mainly focusing on mutation strategies, we decided to select the fuzzers with distinct or unique ways of mutating input, sometimes in combination with other metrics. Other fuzzers we found often use a combination of one of the novelties used in the fuzzers above, like FairFuzz \cite{lemieux2018fairfuzz}, which uses a different priorization of branches, like VUzzer. Because of this, we mainly focus on the features of these fuzzers in the next chapters.
+
+
+
+\begin{comment}
+angora compiles into 2 programs.
+The angora\_fuzzer which actually runs the programs
+The angore\_clang compiler, which compiles any c program using the clang compiler but it inserts hooks into the program to track taint for the slow and to check branches for the fast version
+It communicates with branches by using SHM (shared memory) between the processes. In the fast program, any branch will push some state on the stack, which is read from the fuzzer after it executes an iteration.
+Uses pin mode for taint tracking
+Uses llvm mode for branch checking
+
+In AngoraPass.cc ids are inserted on every compare instruction, a global variable is keeping track of the context in the program. On each function call the context is changed. When a same location is visited via a different branch, the context can be compared to see if it is the same trace.
+
+The compare Ids can be generated randomly or can contain a hash with the location (SEE GLOBAL VARIABLES)
+
+During the trace run the compared bytes are stored for every compare instruction.
+During the fast run the traces are compared.
+This is communicated to the angora fuzzer via shared memory
+
+The first value the \_\_angora\_trace\_cmp function gets is created from the Instruction and CreateZExt on that (It looks like it takes the value which is being compared and does something with the result, used as label)
+
+So compare instruction has id, context and label (called condition, stored in lb1)
+
+The DFSantizer https://clang.llvm.org/docs/DataFlowSanitizer.html is used to attach tags to data which flows through the program. Angora modified this to use byte size taint tracking.
+
+Runtime fast logs the path in a hashmap, if it has found a new path it will track the input to find the new conditional statement. The only real info the fast binary gets, is crash, hang, normal with the output from the condition it was checking. So if 1 if statements is being compared in a context, it will only trigger it, when the statement is reached.
+
+In forkcli when return is called after fork, the function will start executing the regular program.
+
+Strategy:
+Create rust forkserver/forkcli
+In forkcli, add with [\#ctor], if busy waiting, use return to continue execution.
+Compile target with included forkcli library to use.
+Use pipe to file as input for forkcli
+Use pipe to write/rewind input to
+
+Reuse instrumentation from angora to check which operators are used (in lb1 or op, have to check) also check which arguments were used.
+Use operator and arguments to see if check was success.
+
+Use communication via shared memory to load the compare statement to check including context.
+
+
+Step 1: 
+Modify angora to obtain input, trace, taint information for each input in the program.
+Obtainted taint!
+Todo: get trace
+Create program which gets:
+binary, input, optional if statement to check
+Outputs: trace, check if statement is switched
+How to: modify angora -> create yourself
+Step 2:
+Apply different fuzzing strategies to some binary and gather traces for each of the generated inputs.
+Step 3:
+Use function shape analysis to determine shape of parts of the program (how)
+Step 4:
+Classify which fuzzing strategy works better on which function shape
+Step 5:
+Create combined fuzzer.
+Step 6:
+Expand with more strategies.
+
+Question for tomorrow:
+Option 1: Don't continue 1 strategy from a known input, let the strategy start from scratch.
+Option 2: Fuzz inputs from angora and see how "fast" they find a new path from this input/last branch (taint tracking which bytes to fuzz and apply strategy on these bytes)
+The last approach seems better.
+
+Constraint on for each strategy for each compare statement:
+max 10000 inputs OR 15 seconds total execution time (concolic has it though) but otherwise it will take too long to test everything.
+Some strategies also allow for skipping of the execution.
+
+
+We have re implemented the following strategies:
+\begin{itemize}
+    \item Length fuzzer. This fuzzer tries all lengths between 0 and 10000 bytes with random data. No special chars inserted at the end!
+    \item Length fuzzer with trace info. This fuzzer only changes the input when the trace info detected a length comparison of the input to the exact length when a condition is flipped.
+    \item Random fuzzer. The following 3 mutations are applied on the input seed. A random bitflip, a random character removal, a random character insertion, and one of these actions is selected randomly for a random number between 1 and 10.
+    \item Random fuzzer with trace info. The exact same as the random strategy, but now only applied on the bytes which are being compared.
+    \item One byte fuzzer with trace info. If only 1 byte is compared, all values for this byte are tried. If more than 1 byte is compared, this strategy skips the input.
+    \item Magic byte fuzzer with trace info. If a comparison happens with some magic bytes, these exact bytes are tried.
+    \item Gradient descend fuzzer with trace info. This is an iterative optimization algorithm to try to find a local optimum for a function by changing all the input bytes.
+    \item Concolic execution engine with trace info to solve constraints. Previous comparisons on the same bytes are taken into account to try to calculate the constrains under which the condition to compared is being flipped, using a SMT solver (Z3).
+\end{itemize}
+\end{comment}
+
+% ---------------------------------------------------------------------------
+% ----------------------- end of thesis sub-document ------------------------
+% ---------------------------------------------------------------------------
