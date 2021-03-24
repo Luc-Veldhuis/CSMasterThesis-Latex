@@ -102,6 +102,8 @@ To collect conditions from the selected binaries, we first need several executio
 Because we want to look at conditions, and we mostly came up with the research question because of the Angora fuzzer, we decided to use this fuzzer as our starting point. Other advantages of this fuzzer where the fact that it uses 2 types of instrumentation, which we could use this as starting point for our Oracle, and it stores all dynamic taint information of a given trace already in a file. 
 In Chapter \ref{chap:implementation} we will explain in detail what we modified.
 
+A disadvantage from the collected dataset could be that the found traces contain more conditions which can be flipped by the gradient descent algorithm, since this mutator is present in the Angora fuzzer. However, this will be the case for any tried mutator, for any fuzzer, since a fuzzer using random mutations could be biased towards conditions more easily flipped by random mutations.
+
 %Angora uses 2 types of instrumentation to collect information from a binary. It has a fast variant and a track variant. In the track instrumentation, it uses the DataFlowSanitizer \cite{dataflowsanitizer} to instrument it with heavy dynamic taint tracking. This is used to collect a new trace if a new path in the program is found. These are the traces we want to collect for later analysis.
 
 %The fast variant only has limited instrumentation. It inserts an extra check after every if or switch statement which is only triggered when this is the condition being targeted. It then registers this condition is true or false and logs this.

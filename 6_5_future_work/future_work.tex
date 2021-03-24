@@ -29,6 +29,7 @@ In \cite{lyu2019mopt} they claim that the performance of the random strategy is 
 
 As mentioned in Chapter \ref{chap:implementation}, we could also combine the compilation pass from \texttt{SymCC} with the compilation pass from Angora, such that the \texttt{SymCC} framework only starts to generate potential inputs which flip 1 specific branch instead of all branches found in the trace.
 
+It could also be possible to repeat our experiments with another dataset as input, collected from several fuzzers to minimise the impact of the mutators of the used fuzzers.
 
 \section{General framework}
 If a paper claims that it improved one part of a fuzzer but reimplemented it in another language, added multithreading or changed any other aspect besides the improved part, the comparison with a macro-benchmark could have been cleaner by also including statistics of microbenchmarks, or more detailed information of performance of strategies. What is used in some papers is providing the same input seeds to a fuzzer with different strategies and looking at the coverage, however, it is not specified if this coverage diverges or if it contains the same parts of the program. This makes it hard to interpret the results of these experiments. A good attempt to solve these problems has been made by Google with the Fuzzbench benchmarking suite \cite{metzman2020fuzzbench}. However, this only considers the macrobenchmarks of coverage and it is impossible to see exactly which part of a fuzzer outperforms other parts of other fuzzers.

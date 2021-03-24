@@ -27,6 +27,7 @@ Since coverage in increased then conditions are flipped, one of the most importa
 \end{figure}
 
 We see that there is quite some difference between the performance of a strategy per program. It appears that the GradientDescentStrategy outperforms the RandomStrategy with taint in most cases, while the LengthTaintStrategy underperforms most other strategies. We also notice that the number of conditions which are flipped by the RandomStrategy with and without taint differ quite a bit per program. Between the \texttt{xmlwf} binary and the \texttt{djpeg} binary, there is a large decrease in the percentage of flipped conditions when only conditions with taint are considered. This looks like the RandomStrategy sometimes flips a lot of conditions which do not have taint information.
+However, since we might be working with biased data, we want to look further than the GradientDescentStrategy. So the next best strategies when considering percentage of flipped conditions are the RandomStrategy and the RandomTaintStrategy.
 
 We also want to compare the individual conditions. We inspect if there is overlap between the flipped conditions by comparing every strategy with every other strategy. We first take the set of all flipped conditions by one strategy as superset. Then we take all flipped conditions from another strategy as subset and compare how much of the subset is present in the superset. The results are visible in Figure \ref{fig:overlap-strategies}.
 
@@ -65,7 +66,7 @@ We repeated this experiment but now replacing the flipped conditions found by th
     \caption{Critical distance between average rank of the strategies only considering tainted conditions.}
     \label{fig:cd-strategies-with-taint}
 \end{figure}
-We get somewhat similar results, but now it is clear that the GradientDescentStrategy is statistically different from all other strategies except the RandomTaintStrategy when considering only conditions which have taint information available.
+We get somewhat similar results, but now it is clear that the GradientDescentStrategy is statistically different from all other strategies except the RandomTaintStrategy when considering only conditions which have taint information available. When we keep in mind that the collected traces might have a bias towards the GradientDescentStrategy, we also see that the RandomTaintStrategy is statistically different from the other strategies excluding the GradientDescentStrategy.
 
 \subsection{Time to flip}
 The percentage of flipped conditions is not the only measure we have to compare the performance. We also measured the time a strategy spend mutating an input until a flip was found in a given condition. To compare the timing of the strategies, we rank the time a strategy took before a given condition was flipped for all conditions which have been flipped at least once. If a condition was never flipped by a strategy, we assign the maximum rank.
